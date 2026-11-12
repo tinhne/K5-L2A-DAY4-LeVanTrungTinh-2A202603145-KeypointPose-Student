@@ -501,12 +501,20 @@ def cmd_export(args):
                 warn(f"Job {j['task_name']} chưa 'completed': khi xong, trong job bấm Menu → Finish the job.")
         except RuntimeError:
             pass
-    main = {k: p for k, p in made if "extra" not in k}
-    if "persons" in main or "faces" in main:
+    groups = [
+        ({k: p for k, p in made if "extra" not in k}, rec["persons"], rec["faces"]),
+        ({k.replace("-extra", ""): p for k, p in made if "extra" in k},
+         rec.get("persons_extra", []), rec.get("faces_extra", [])),
+    ]
+    for files, person_images, face_images in groups:
+        if not files:
+            continue
         step("Tự kiểm (src/check_submission.py)")
         cmd = [sys.executable, str(ROOT / "src" / "check_submission.py")]
-        if "persons" in main: cmd += ["--persons", str(main["persons"]), "--expected-person-images", str(len(rec["persons"]))]
-        if "faces" in main: cmd += ["--faces", str(main["faces"]), "--expected-face-images", str(len(rec["faces"]))]
+        if "persons" in files:
+            cmd += ["--persons", str(files["persons"]), "--expected-person-images", str(len(person_images))]
+        if "faces" in files:
+            cmd += ["--faces", str(files["faces"]), "--expected-face-images", str(len(face_images))]
         sys.stdout.flush()
         subprocess.run(cmd)
 
@@ -545,7 +553,7 @@ def main():
     if sys.version_info < (3, 8):
         die("Cần Python 3.8 trở lên.")
     ap = argparse.ArgumentParser(description="Trợ lý Lab Ngày 4 trên CVAT cục bộ")
-    ap.add_argument("--url", default=os.environ.get("CVAT_URL", "http://localhost:8080"), help="địa chỉ CVAT (mặc định localhost:8080)")
+    ap.add_argument("--url", default=os.environ.get("CVAT_URL", "http://localhost:8081"), help="địa chỉ CVAT (mặc định localhost:8081)")
     sub = ap.add_subparsers(dest="cmd", required=True)
     c = sub.add_parser("check", help="kiểm và tự sửa CVAT")
     c.add_argument("--no-persist", action="store_true", help="chỉ sửa tạm, không ghi docker-compose.override.yml")
